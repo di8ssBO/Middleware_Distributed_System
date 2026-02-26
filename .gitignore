@@ -1,0 +1,16 @@
+# Virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Generated protobuf files (sẽ generate lại được)
+generated/
+
+# VS Code
+.vscode/
+
+# Python
+*.egg-info/
+dist/
+build/
