@@ -4,10 +4,10 @@ import time
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'generated'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'generated'))
 
-from generated import school_pb2
-from generated import school_pb2_grpc
+import school_pb2
+import school_pb2_grpc
 
 class MathService(school_pb2_grpc.MathServiceServicer):
 

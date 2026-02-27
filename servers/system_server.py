@@ -1,15 +1,13 @@
 import grpc
 from concurrent import futures
 import time
-import socket
-from datetime import datetime
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'generated'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'generated'))
 
-from generated import school_pb2
-from generated import school_pb2_grpc
+import school_pb2
+import school_pb2_grpc
 
 SERVICE_PORTS = {
     "MathService": 50051,
