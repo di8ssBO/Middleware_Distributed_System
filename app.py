@@ -103,6 +103,26 @@ def api_trang_thai():
             })
     return jsonify(results)
 
+@app.route('/api/chi-tiet-service', methods=['GET'])
+def api_chi_tiet_service():
+    services = ['MathService', 'StudentService', 'SystemService']
+    port_map = {'MathService':'50051','StudentService':'50052','SystemService':'50053'}
+    results  = []
+    for svc in services:
+        try:
+            r = client.kiem_tra_trang_thai(svc)
+            results.append({
+                "ten": r.ten_service, "hoat_dong": r.hoat_dong,
+                "thoi_gian": r.thoi_gian, "so_yeu_cau": r.so_yeu_cau,
+                "port": port_map.get(svc, "?")
+            })
+        except Exception:
+            results.append({
+                "ten": svc, "hoat_dong": False,
+                "thoi_gian": "Không phản hồi", "so_yeu_cau": 0,
+                "port": port_map.get(svc, "?")
+            })
+    return jsonify(results)
 
 # ----------------------------------------------------------------
 # CHAY APP
