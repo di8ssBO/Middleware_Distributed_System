@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>gRPC Middleware Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    /* ── HEADER ── */
+    .header { text-align: center; margin-bottom: 28px; }
+    .header-badge {
+      display: inline-block;
+      font-family: Consolas, monospace;
+      font-size: 11px; font-weight: 700;
+      color: #388bfd; background: #1f3a5f;
+      border: 1px solid #388bfd; border-radius: 20px;
+      padding: 3px 14px; letter-spacing: 1.5px;
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+    .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+    .header h1 span { color: #388bfd; }
+    .header p  { color: #7d8590; font-size: 13px; margin-top: 5px; }
+
+    /* ── SECTION ── */
+    .section-label {
+      font-size: 11px; font-weight: 700; color: #7d8590;
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+    }
+
+    /* ── STATUS GRID ── */
+    .status-section { margin-bottom: 20px; }
+    .status-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    .status-card {
+      background: #161b22; border: 1px solid #30363d;
+      border-left: 3px solid #f85149; border-radius: 10px;
+      padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+      transition: all .3s;
+    }
+    .status-card.online  { border-left-color: #3fb950; }
+    .status-card.offline { border-left-color: #f85149; }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      flex-shrink: 0; background: #f85149; transition: all .3s;
+    }
+    .status-card.online .status-dot {
+      background: #3fb950; box-shadow: 0 0 8px #3fb950;
+      animation: blink 2s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .status-info { flex: 1; min-width: 0; }
+    .status-name { font-size: 13px; font-weight: 600; }
+    .status-meta { font-family: Consolas,monospace; font-size: 11px; color: #7d8590; margin-top: 2px; }
+    .status-req  { font-family: Consolas,monospace; font-size: 12px; color: #e3b341; font-weight: 700; }
+
+    /* ── PANELS ── */
+    .panels-top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .panel-bottom { margin-bottom: 16px; }
+
+    .panel {
+      background: #161b22; border: 1px solid #30363d;
+      border-radius: 12px; overflow: hidden;
+    }
+    .panel-header {
+      padding: 13px 18px; border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .panel-icon {
+      width: 30px; height: 30px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .panel-icon.green  { background: #1a3a24; }
+    .panel-icon.purple { background: #2d1f4a; }
+    .panel-icon.orange { background: #3a2e1a; }
+    .panel-title { font-size: 14px; font-weight: 600; }
+    .panel-port  { font-family: Consolas,monospace; font-size: 11px; color: #7d8590; margin-left: auto; }
+    .panel-body  { padding: 16px 18px; }
+
+    /* ── FORM ── */
+    .sub-label {
+      font-size: 11px; font-weight: 700; color: #7d8590;
+      text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px;
+    }
+    .block { margin-bottom: 18px; }
+    .block:last-child { margin-bottom: 0; }
+    .row   { display: flex; gap: 8px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+
+    input {
+      flex: 1; min-width: 0; width: 100%;
+      background: #1c2128; border: 1px solid #30363d;
+      border-radius: 7px; color: #e6edf3;
+      font-family: 'Segoe UI',sans-serif; font-size: 13px;
+      padding: 8px 12px; outline: none; transition: border-color .2s;
+    }
+    input:focus    { border-color: #388bfd; }
+    input::placeholder { color: #484f58; }
+
+    button {
+      font-family: 'Segoe UI',sans-serif; font-size: 13px; font-weight: 600;
+      border: none; border-radius: 7px; padding: 8px 16px;
+      cursor: pointer; transition: opacity .15s, transform .1s;
+      white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    }
+    button:hover  { opacity: .85; }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .btn-green  { background: #3fb950; color: #0d1117; }
+    .btn-blue   { background: #388bfd; color: #fff; }
+    .btn-purple { background: #a371f7; color: #fff; width: 100%; margin-top: 2px; justify-content: center; }
+    .btn-orange { background: #e3b341; color: #0d1117; }
+    .btn-ghost  {
+      background: #1c2128; border: 1px solid #30363d;
+      color: #7d8590; font-size: 12px; padding: 5px 12px;
+    }
+    .btn-ghost.active,
+    .btn-ghost:hover { border-color: #388bfd; color: #388bfd; }
+    .filter-row { display: flex; gap: 6px; margin-bottom: 8px; }
+
+    /* ── LOADING SPINNER ── */
+    .spinner {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid #30363d; border-top-color: #388bfd;
+      border-radius: 50%; animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RESULT ── */
+    .result {
+      font-family: Consolas,monospace; font-size: 12px;
+      min-height: 18px; margin-top: 6px;
+      padding: 6px 10px; border-radius: 6px; display: none;
+      transition: all .2s;
+    }
+    .result.show { display: block; }
+    .result.ok   { background: #1a3a24; color: #3fb950; border-left: 3px solid #3fb950; }
+    .result.err  { background: #3a1f1f; color: #f85149; border-left: 3px solid #f85149; }
+    .result.info { background: #1f3a5f; color: #388bfd; border-left: 3px solid #388bfd; }
+    .result.warn { background: #3a2e1a; color: #e3b341; border-left: 3px solid #e3b341; }
+
+    /* ── SV LIST ── */
+    .sv-list { max-height: 150px; overflow-y: auto; }
+    .sv-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 10px; border-radius: 6px; margin-bottom: 4px;
+      background: #1c2128; font-size: 12px;
+      transition: background .15s;
+    }
+    .sv-row:hover { background: #21262d; }
+    .sv-code  { font-family: Consolas,monospace; color: #7d8590; font-size: 11px; margin-right: 6px; }
+    .sv-name  { color: #e6edf3; }
+    .sv-score { font-family: Consolas,monospace; font-weight: 700; font-size: 13px; }
+    .sv-score.pass { color: #3fb950; }
+    .sv-score.fail { color: #f85149; }
+    .sv-empty { text-align: center; color: #484f58; font-size: 12px; padding: 16px 0; }
+
+    /* ── SYSTEM PANEL ── */
+    .sys-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    .sys-card {
+      background: #1c2128; border: 1px solid #30363d;
+      border-radius: 10px; padding: 16px;
+    }
+    .sys-card-header {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    }
+    .sys-indicator {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #f85149; flex-shrink: 0;
+    }
+    .sys-indicator.on {
+      background: #3fb950; box-shadow: 0 0 6px #3fb950;
+      animation: blink 2s infinite;
+    }
+    .sys-card-name { font-size: 13px; font-weight: 600; }
+    .sys-stat {
+      display: flex; justify-content: space-between;
+      align-items: center; padding: 5px 0;
+      border-bottom: 1px solid #30363d; font-size: 12px;
+    }
+    .sys-stat:last-child { border-bottom: none; padding-bottom: 0; }
+    .sys-stat-label { color: #7d8590; }
+    .sys-stat-value { font-family: Consolas,monospace; font-weight: 600; }
+    .sys-stat-value.green  { color: #3fb950; }
+    .sys-stat-value.red    { color: #f85149; }
+    .sys-stat-value.yellow { color: #e3b341; }
+    .sys-stat-value.blue   { color: #388bfd; }
+
+    /* ── TRANSPARENCY BOX ── */
+    .transparency-box {
+      background: #1f3a5f; border: 1px solid #388bfd;
+      border-radius: 8px; padding: 10px 14px; margin-top: 12px;
+      font-size: 12px; color: #79c0ff;
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .transparency-box .tip-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── CONSOLE ── */
+    .console {
+      background: #0a0e13; border: 1px solid #30363d;
+      border-radius: 12px; overflow: hidden;
+    }
+    .console-header {
+      padding: 10px 16px; border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .console-title {
+      font-family: Consolas,monospace; font-size: 12px; font-weight: 700;
+      color: #7d8590; display: flex; align-items: center; gap: 8px;
+    }
+    .console-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #3fb950; box-shadow: 0 0 5px #3fb950;
+      animation: blink 2s infinite;
+    }
+    .console-actions { display: flex; gap: 6px; }
+    .console-body {
+      padding: 12px 16px; font-family: Consolas,monospace; font-size: 12px;
+      max-height: 160px; overflow-y: auto;
+    }
+    .log-line { margin-bottom: 3px; line-height: 1.6; }
+    .log-time  { color: #484f58; margin-right: 8px; }
+    .log-send  { color: #3fb950; }
+    .log-recv  { color: #39d0c7; }
+    .log-err   { color: #f85149; }
+    .log-warn  { color: #e3b341; }
+    .log-sys   { color: #a371f7; }
+    .log-idle  { color: #484f58; }
+
+    /* ── FOOTER STATS ── */
+    .footer-stats {
+      display: flex; justify-content: center; gap: 32px;
+      margin-top: 16px; padding-top: 16px;
+      border-top: 1px solid #21262d;
+    }
+    .footer-stat { text-align: center; }
+    .footer-stat-val { font-family: Consolas,monospace; font-size: 20px; font-weight: 700; color: #388bfd; }
+    .footer-stat-lbl { font-size: 11px; color: #7d8590; margin-top: 2px; }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+
+    /* ── SKELETON ── */
+    .skeleton {
+      background: linear-gradient(90deg,#161b22 25%,#30363d 50%,#161b22 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite;
+      border-radius: 6px; height: 14px;
+    }
+    @keyframes shimmer { 0%{background-position:200%} 100%{background-position:-200%} }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-badge">Distributed Systems · Middleware · gRPC</div>
+    <h1>⚡ gRPC <span>Middleware</span> Dashboard</h1>
+    <p>3 Service độc lập · Python · Protobuf · Flask · HTTP/2</p>
+  </div>
+
+  <!-- STATUS CARDS -->
+  <div class="status-section">
+    <div class="section-label">📡 Trạng thái Services — tự cập nhật mỗi 5 giây</div>
+    <div class="status-grid" id="status-grid">
+      <div class="status-card offline">
+        <div class="status-dot"></div>
+        <div class="status-info">
+          <div class="skeleton" style="width:120px;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:80px"></div>
+        </div>
+        <div class="status-req">...</div>
+      </div>
+      <div class="status-card offline">
+        <div class="status-dot"></div>
+        <div class="status-info">
+          <div class="skeleton" style="width:130px;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:80px"></div>
+        </div>
+        <div class="status-req">...</div>
+      </div>
+      <div class="status-card offline">
+        <div class="status-dot"></div>
+        <div class="status-info">
+          <div class="skeleton" style="width:110px;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:80px"></div>
+        </div>
+        <div class="status-req">...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP PANELS: MATH + STUDENT -->
+  <div class="panels-top">
+
+    <!-- MATH SERVICE -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon green">🔢</div>
+        <div class="panel-title" style="color:#3fb950">Math Service</div>
+        <div class="panel-port">localhost:50051</div>
+      </div>
+      <div class="panel-body">
+
+        <div class="block">
+          <div class="sub-label">Tính tổng hai số</div>
+          <div class="row">
+            <input id="so-a" type="number" step="0.1" placeholder="Số A">
+            <input id="so-b" type="number" step="0.1" placeholder="Số B">
+            <button class="btn-green" id="btn-tong" onclick="tinhTong()">Tính</button>
+          </div>
+          <div id="r-tong" class="result"></div>
+        </div>
+
+        <div class="block">
+          <div class="sub-label">Tìm ước số của N</div>
+          <div class="row">
+            <input id="so-n" type="number" placeholder="Nhập số N  (VD: 12, 24, 36)">
+            <button class="btn-blue" id="btn-uoc" onclick="tinhNhanTu()">Tìm</button>
+          </div>
+          <div id="r-uoc" class="result"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- STUDENT SERVICE -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon purple">🎓</div>
+        <div class="panel-title" style="color:#a371f7">Student Service</div>
+        <div class="panel-port">localhost:50052</div>
+      </div>
+      <div class="panel-body">
+
+        <div class="block">
+          <div class="sub-label">Thêm sinh viên mới</div>
+          <div class="grid3">
+            <input id="ma-sv"  placeholder="Mã SV (VD: SV004)">
+            <input id="ho-ten" placeholder="Họ và tên">
+            <input id="diem" type="number" step="0.1" min="0" max="10" placeholder="Điểm (0–10)">
+          </div>
+          <button class="btn-purple" id="btn-them" onclick="themSV()">
+            ➕ Thêm Sinh Viên
+          </button>
+          <div id="r-them" class="result"></div>
+        </div>
+
+        <div class="block">
+          <div class="sub-label">Danh sách sinh viên</div>
+          <div class="filter-row">
+            <button class="btn-ghost active" id="f-all"  onclick="layDanhSach('all')">Tất cả</button>
+            <button class="btn-ghost"        id="f-pass" onclick="layDanhSach('pass')">✅ Đậu (≥5)</button>
+            <button class="btn-ghost"        id="f-fail" onclick="layDanhSach('fail')">❌ Rớt (&lt;5)</button>
+          </div>
+          <div id="sv-list" class="sv-list">
+            <div class="sv-empty">Nhấn nút để tải danh sách</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM PANEL: SYSTEM SERVICE -->
+  <div class="panel panel-bottom">
+    <div class="panel-header">
+      <div class="panel-icon orange">⚙️</div>
+      <div class="panel-title" style="color:#e3b341">System Service
+        <span style="font-size:11px;font-weight:400;color:#7d8590;margin-left:8px">
+          — Giám sát trạng thái toàn hệ thống
+        </span>
+      </div>
+      <button class="btn-ghost" onclick="loadSystemDetail()"
+        style="margin-left:auto;font-size:11px;padding:4px 12px">
+        🔄 Refresh
+      </button>
+    </div>
+    <div class="panel-body">
+      <div class="sys-grid" id="sys-grid">
+        <div class="sys-card">
+          <div class="skeleton" style="width:100%;margin-bottom:8px"></div>
+          <div class="skeleton" style="width:80%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:60%"></div>
+        </div>
+        <div class="sys-card">
+          <div class="skeleton" style="width:100%;margin-bottom:8px"></div>
+          <div class="skeleton" style="width:80%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:60%"></div>
+        </div>
+        <div class="sys-card">
+          <div class="skeleton" style="width:100%;margin-bottom:8px"></div>
+          <div class="skeleton" style="width:80%;margin-bottom:6px"></div>
+          <div class="skeleton" style="width:60%"></div>
+        </div>
+      </div>
+
+      <!-- TRANSPARENCY NOTE -->
+      <div class="transparency-box">
+        <div class="tip-icon">💡</div>
+        <div>
+          <strong>Location Transparency:</strong>
+          Dashboard không cần biết 3 server đang chạy trên máy nào —
+          chỉ cần gọi đúng port. Đây là tính trong suốt vị trí mà
+          Middleware cung cấp cho Hệ Phân Tán.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONSOLE LOG -->
+  <div class="console">
+    <div class="console-header">
+      <div class="console-title">
+        <div class="console-dot"></div>
+        gRPC Call Log — Realtime
+      </div>
+      <div class="console-actions">
+        <span id="req-count"
+          style="font-family:Consolas,monospace;font-size:11px;
+                 color:#e3b341;padding:3px 8px;background:#3a2e1a;
+                 border-radius:4px">
+          0 requests
+        </span>
+        <button class="btn-ghost" onclick="clearLog()"
+          style="font-size:11px;padding:3px 10px">
+          Xóa
+        </button>
+      </div>
+    </div>
+    <div class="console-body" id="log">
+      <div class="log-line log-idle">
+        -- Hệ thống sẵn sàng. Thực hiện một thao tác để xem gRPC call... --
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER STATS -->
+  <div class="footer-stats">
+    <div class="footer-stat">
+      <div class="footer-stat-val" id="stat-total">0</div>
+      <div class="footer-stat-lbl">Tổng requests</div>
+    </div>
+    <div class="footer-stat">
+      <div class="footer-stat-val" id="stat-ok" style="color:#3fb950">0</div>
+      <div class="footer-stat-lbl">Thành công</div>
+    </div>
+    <div class="footer-stat">
+      <div class="footer-stat-val" id="stat-err" style="color:#f85149">0</div>
+      <div class="footer-stat-lbl">Lỗi</div>
+    </div>
+    <div class="footer-stat">
+      <div class="footer-stat-val" id="stat-svc" style="color:#e3b341">0/3</div>
+      <div class="footer-stat-lbl">Service online</div>
+    </div>
+  </div>
+
+<!-- JAVASCRIPT -->
+<script>
+  // ── STATE ──
+  let stats = { total: 0, ok: 0, err: 0, online: 0 }
+
+  const portMap = { MathService:'50051', StudentService:'50052', SystemService:'50053' }
+  const iconMap = { MathService:'🔢', StudentService:'🎓', SystemService:'⚙️' }
+
+  // ── TIỆN ÍCH ──
+  function updateStats(type) {
+    stats.total++
+    if (type === 'ok') stats.ok++
+    if (type === 'err') stats.err++
+    document.getElementById('stat-total').textContent = stats.total
+    document.getElementById('stat-ok').textContent    = stats.ok
+    document.getElementById('stat-err').textContent   = stats.err
+    document.getElementById('req-count').textContent  = `${stats.total} requests`
+  }
+
+  function logLine(msg, type = 'send') {
+    const el   = document.getElementById('log')
+    const time = new Date().toLocaleTimeString('vi-VN')
+    const idle = el.querySelector('.log-idle')
+    if (idle) idle.remove()
+    const div = document.createElement('div')
+    div.className = `log-line log-${type}`
+    div.innerHTML = `<span class="log-time">[${time}]</span>${msg}`
+    el.prepend(div)
+    // Giới hạn 100 dòng log
+    while (el.children.length > 100) el.removeChild(el.lastChild)
+  }
+
+  function clearLog() {
+    document.getElementById('log').innerHTML =
+      '<div class="log-line log-idle">-- Log đã xóa --</div>'
+    logLine('🗑️ Log đã được xóa', 'sys')
+  }
+
+  function showResult(id, msg, type = 'ok') {
+    const el = document.getElementById(id)
+    el.className = `result show ${type}`
+    el.textContent = msg
+  }
+
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId)
+    if (!btn) return
+    btn.disabled = loading
+    if (loading) {
+      btn._orig = btn.innerHTML
+      btn.innerHTML = '<span class="spinner"></span> Đang gọi...'
+    } else {
+      btn.innerHTML = btn._orig || btn.innerHTML
+    }
+  }
+
+  function setFilter(active) {
+    ;['all','pass','fail'].forEach(k =>
+      document.getElementById(`f-${k}`)?.classList.toggle('active', k === active)
+    )
+  }
+
+  async function req(method, url, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } }
+    if (body) opts.body = JSON.stringify(body)
+    const res  = await fetch(url, opts)
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.loi || `HTTP ${res.status}`)
+    return data
+  }
+
+
+  // ── MATH SERVICE ──
+
+  async function tinhTong() {
+    const a = document.getElementById('so-a').value
+    const b = document.getElementById('so-b').value
+    if (!a || !b) {
+      showResult('r-tong', '⚠️ Vui lòng nhập đủ Số A và Số B', 'warn')
+      return
+    }
+    setLoading('btn-tong', true)
+    logLine(`📤 Gọi MathService.TinhTong(a=${a}, b=${b})`)
+    try {
+      const d = await req('POST', '/api/tinh-tong', { a, b })
+      showResult('r-tong', `✅ ${d.mo_ta}`, 'ok')
+      logLine(`📥 Kết quả: ${d.mo_ta}`, 'recv')
+      updateStats('ok')
+    } catch (e) {
+      showResult('r-tong', `❌ ${e.message}`, 'err')
+      logLine(`❌ Lỗi MathService: ${e.message}`, 'err')
+      updateStats('err')
+    } finally {
+      setLoading('btn-tong', false)
+      loadStatus()
+    }
+  }
+
+  async function tinhNhanTu() {
+    const n = document.getElementById('so-n').value
+    if (!n || parseInt(n) < 1) {
+      showResult('r-uoc', '⚠️ Nhập số N lớn hơn 0', 'warn')
+      return
+    }
+    setLoading('btn-uoc', true)
+    logLine(`📤 Gọi MathService.TinhNhanTu(n=${n})`)
+    try {
+      const d = await req('POST', '/api/nhan-tu', { n })
+      showResult('r-uoc', `✅ ${d.mo_ta}`, 'ok')
+      logLine(`📥 Kết quả: ${d.mo_ta}`, 'recv')
+      updateStats('ok')
+    } catch (e) {
+      showResult('r-uoc', `❌ ${e.message}`, 'err')
+      logLine(`❌ Lỗi MathService: ${e.message}`, 'err')
+      updateStats('err')
+    } finally {
+      setLoading('btn-uoc', false)
+      loadStatus()
+    }
+  }
+
+
+  // ── STUDENT SERVICE ──
+
+  async function themSV() {
+    const ma_sv  = document.getElementById('ma-sv').value.trim()
+    const ho_ten = document.getElementById('ho-ten').value.trim()
+    const diem   = document.getElementById('diem').value
+
+    if (!ma_sv)  { showResult('r-them','⚠️ Chưa nhập Mã SV','warn'); return }
+    if (!ho_ten) { showResult('r-them','⚠️ Chưa nhập Họ tên','warn'); return }
+    if (!diem)   { showResult('r-them','⚠️ Chưa nhập Điểm','warn'); return }
+
+    const d_num = parseFloat(diem)
+    if (isNaN(d_num) || d_num < 0 || d_num > 10) {
+      showResult('r-them', '⚠️ Điểm phải từ 0.0 đến 10.0', 'warn')
+      return
+    }
+
+    setLoading('btn-them', true)
+    logLine(`📤 Gọi StudentService.ThemSinhVien(${ma_sv}, "${ho_ten}", ${diem})`)
+    try {
+      const d = await req('POST', '/api/them-sv', { ma_sv, ho_ten, diem })
+      showResult('r-them', `✅ ${d.thong_bao}`, 'ok')
+      logLine(`📥 ${d.thong_bao}`, 'recv')
+      ;['ma-sv','ho-ten','diem'].forEach(id =>
+        document.getElementById(id).value = ''
+      )
+      updateStats('ok')
+      layDanhSach('all')
+    } catch (e) {
+      showResult('r-them', `❌ ${e.message}`, 'err')
+      logLine(`❌ Lỗi StudentService: ${e.message}`, 'err')
+      updateStats('err')
+    } finally {
+      setLoading('btn-them', false)
+      loadStatus()
+    }
+  }
+
+  async function layDanhSach(loc) {
+    setFilter(loc)
+    logLine(`📤 Gọi StudentService.LayDanhSach(loc="${loc}")`)
+    try {
+      const d  = await req('GET', `/api/danh-sach-sv?loc=${loc}`)
+      const el = document.getElementById('sv-list')
+
+      if (!d.sinh_viens.length) {
+        const msg = loc === 'pass' ? 'Không có sinh viên đậu'
+                  : loc === 'fail' ? 'Không có sinh viên rớt'
+                  : 'Chưa có sinh viên nào'
+        el.innerHTML = `<div class="sv-empty">${msg}</div>`
+      } else {
+        el.innerHTML = d.sinh_viens.map((sv, i) => `
+          <div class="sv-row">
+            <div>
+              <span class="sv-code">${sv.ma_sv}</span>
+              <span class="sv-name">${sv.ho_ten}</span>
+            </div>
+            <span class="sv-score ${sv.diem >= 5 ? 'pass' : 'fail'}">
+              ${sv.diem}
+            </span>
+          </div>`).join('')
+      }
+
+      logLine(`📥 Nhận ${d.tong_so} sinh viên (loc="${loc}")`, 'recv')
+      updateStats('ok')
+    } catch (e) {
+      logLine(`❌ Lỗi LayDanhSach: ${e.message}`, 'err')
+      updateStats('err')
+    }
+  }
+
+
+  // ── SYSTEM SERVICE ──
+
+  async function loadStatus() {
+    try {
+      const data = await req('GET', '/api/trang-thai')
+      const online = data.filter(s => s.hoat_dong).length
+      stats.online = online
+      document.getElementById('stat-svc').textContent = `${online}/3`
+
+      document.getElementById('status-grid').innerHTML = data.map(s => `
+        <div class="status-card ${s.hoat_dong ? 'online' : 'offline'}">
+          <div class="status-dot"></div>
+          <div class="status-info">
+            <div class="status-name">
+              ${iconMap[s.ten] || '⚙️'} ${s.ten}
+            </div>
+            <div class="status-meta">
+              :${portMap[s.ten] || '?'} · ${s.thoi_gian}
+            </div>
+          </div>
+          <div class="status-req">${s.so_yeu_cau} req</div>
+        </div>`).join('')
+    } catch {
+      document.getElementById('status-grid').innerHTML =
+        `<div class="status-card offline"
+              style="grid-column:span 3;justify-content:center;gap:12px">
+          <div class="status-dot"></div>
+          <span style="color:#f85149;font-size:13px">
+            ❌ Không thể kết nối — Kiểm tra 3 server đang chạy chưa
+          </span>
+        </div>`
+    }
+  }
+
+  async function loadSystemDetail() {
+    logLine('🔄 Gọi SystemService.KiemTraTrangThai() cho cả 3 service', 'sys')
+    try {
+      const data = await req('GET', '/api/chi-tiet-service')
+
+      document.getElementById('sys-grid').innerHTML = data.map(s => `
+        <div class="sys-card">
+          <div class="sys-card-header">
+            <div class="sys-indicator ${s.hoat_dong ? 'on' : ''}"></div>
+            <div class="sys-card-name">
+              ${iconMap[s.ten] || '⚙️'} ${s.ten}
+            </div>
+          </div>
+          <div class="sys-stat">
+            <span class="sys-stat-label">Trạng thái</span>
+            <span class="sys-stat-value ${s.hoat_dong ? 'green' : 'red'}">
+              ${s.hoat_dong ? '● ONLINE' : '● OFFLINE'}
+            </span>
+          </div>
+          <div class="sys-stat">
+            <span class="sys-stat-label">Port</span>
+            <span class="sys-stat-value blue">:${s.port}</span>
+          </div>
+          <div class="sys-stat">
+            <span class="sys-stat-label">Requests</span>
+            <span class="sys-stat-value yellow">${s.so_yeu_cau}</span>
+          </div>
+          <div class="sys-stat">
+            <span class="sys-stat-label">Cập nhật</span>
+            <span class="sys-stat-value" style="color:#7d8590;font-size:10px">
+              ${s.thoi_gian}
+            </span>
+          </div>
+        </div>`).join('')
+
+      logLine(`📥 Nhận trạng thái ${data.length} services`, 'recv')
+      updateStats('ok')
+    } catch (e) {
+      logLine(`❌ Lỗi SystemService: ${e.message}`, 'err')
+      updateStats('err')
+    }
+    loadStatus()
+  }
+
+
+  // ── KHỞI ĐỘNG ──
+  loadStatus()
+  loadSystemDetail()
+  setInterval(() => { loadStatus(); loadSystemDetail(); }, 5000)
+
+  // Cho phép nhấn Enter trong input
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return
+    const id = document.activeElement?.id
+    if (id === 'so-a' || id === 'so-b') tinhTong()
+    if (id === 'so-n') tinhNhanTu()
+    if (['ma-sv','ho-ten','diem'].includes(id)) themSV()
+  })
+</script>
+</body>
+</html>
