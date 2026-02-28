@@ -29,7 +29,7 @@ class MathService(school_pb2_grpc.MathServiceServicer):
 
         return school_pb2.DanhSachSo(
             danh_sach=divisors,
-            mo_ta=f"Ước của {n}"
+            mo_ta=f"Ước của {n}: {divisors}"
         )
 
 def serve():

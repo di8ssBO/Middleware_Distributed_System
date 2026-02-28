@@ -1,6 +1,8 @@
 import grpc
 from concurrent import futures
+from datetime import datetime
 import time
+import socket
 
 import sys
 import os
@@ -13,6 +15,12 @@ SERVICE_PORTS = {
     "MathService": 50051,
     "StudentService": 50052,
     "SystemService": 50053,
+}
+
+SERVICE_STATUS = {
+    "MathService": False,
+    "StudentService": False,
+    "SystemService": True,  # SystemService luôn hoạt động
 }
 
 class SystemService(school_pb2_grpc.SystemServiceServicer):
