@@ -7,33 +7,29 @@ import grpc
 from generated import school_pb2_grpc
 from generated import school_pb2
 
-def MathClient():
+# Math Service
+def TinhTong(a, b):
     with grpc.insecure_channel('localhost:50051') as channel:
         stub = school_pb2_grpc.MathServiceStub(channel)
+        response = stub.TinhTong(school_pb2.HaiSo(a=a, b=b))
+        return response.gia_tri
 
-        response1 = stub.TinhTong(school_pb2.HaiSo(a=5.5, b=4.5))
+def TinhNhanTu(n):
+    with grpc.insecure_channel('localhost:50051') as channel:
+        stub = school_pb2_grpc.MathServiceStub(channel)
+        response = stub.TinhNhanTu(school_pb2.MotSo(n=n))
+        return response.gia_tri
 
-        print(f"Kết quả tổng: {response1.gia_tri}")
-        print(f"Mô tả: {response1.mo_ta}")
-
-        print("---Next---")
-
-        response2 = stub.TinhNhanTu(school_pb2.MotSo(n=12))
-
-        print(f"Danh sách ước số: {response2.danh_sach}")
-        print(f"Mô tả: {response2.mo_ta}")
-
-def StudentClient():
+# Student Service
+def ThemSinhVien(students):
     with grpc.insecure_channel('localhost:50052') as channel:
         stub = school_pb2_grpc.StudentServiceStub(channel)
 
-        print("=== Thêm Sinh Viên ===")
-
-        students = [
-            ("SV01", "Nguyen Van A", 8.5),
-            ("SV02", "Tran Thi B", 4.2),
-            ("SV03", "Le Van C", 6.0),
-        ]
+        # students = [
+        #     ("SV01", "Nguyen Van A", 8.5),
+        #     ("SV02", "Tran Thi B", 4.2),
+        #     ("SV03", "Le Van C", 6.0),
+        # ]
 
         for ma_sv, ho_ten, diem in students:
             response = stub.ThemSinhVien(
@@ -46,18 +42,9 @@ def StudentClient():
 
             print(response.thong_bao)
 
-        print("\n=== Danh Sách Tất Cả ===")
-
-        response = stub.LayDanhSach(
-            school_pb2.ThamSo(loc="all")
-        )
-
-        for sv in response.sinh_viens:
-            print(f"{sv.ma_sv} | {sv.ho_ten} | {sv.diem}")
-
-        print("Tổng số:", response.tong_so)
-
-        print("\n=== Danh Sách Đậu ===")
+def DanhSachDau():
+    with grpc.insecure_channel('localhost:50052') as channel:
+        stub = school_pb2_grpc.StudentServiceStub(channel)
 
         response = stub.LayDanhSach(
             school_pb2.ThamSo(loc="pass")
@@ -68,7 +55,9 @@ def StudentClient():
 
         print("Tổng số:", response.tong_so)
 
-        print("\n=== Danh Sách Rớt ===")
+def DanhSachRot():
+    with grpc.insecure_channel('localhost:50052') as channel:
+        stub = school_pb2_grpc.StudentServiceStub(channel)
 
         response = stub.LayDanhSach(
             school_pb2.ThamSo(loc="fail")
@@ -79,7 +68,8 @@ def StudentClient():
 
         print("Tổng số:", response.tong_so)
 
-def SystemClient():
+# System Service
+def KiemTraTrangThai():
     with grpc.insecure_channel('localhost:50053') as channel:
         stub = school_pb2_grpc.SystemServiceStub(channel)
 
@@ -100,13 +90,19 @@ def run():
 
     if choice == 1:
         # MATH
-        MathClient()
+        print(TinhTong(4, 5))
     elif choice == 2:
         # STUDENT
-        StudentClient()
+        students = [
+            ("SV01", "Nguyen Van A", 8.5),
+            ("SV02", "Nguyen Van B", 7.5),
+            ("SV03", "Nguyen Van C", 4)
+        ]
+        ThemSinhVien(students)
+        DanhSachDau()
     else: 
         # SYSTEM
-        SystemClient()    
+        KiemTraTrangThai()    
 
 if __name__ == "__main__":
     run()
