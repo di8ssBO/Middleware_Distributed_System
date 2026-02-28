@@ -110,7 +110,7 @@ def api_chi_tiet_service():
     results  = []
     for svc in services:
         try:
-            r = client.kiem_tra_trang_thai(svc)
+            r = client.KiemTraTrangThai(svc)
             results.append({
                 "ten": r.ten_service, "hoat_dong": r.hoat_dong,
                 "thoi_gian": r.thoi_gian, "so_yeu_cau": r.so_yeu_cau,
