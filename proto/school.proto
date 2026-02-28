@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+// ================================================================
+// SERVICE 1: TOÁN HỌC — port 50051
+// ================================================================
+service MathService {
+  rpc TinhTong    (HaiSo) returns (KetQua);
+  rpc TinhNhanTu  (MotSo) returns (DanhSachSo);
+}
+
+message HaiSo {
+  float a = 1;
+  float b = 2;
+}
+
+message MotSo {
+  int32 n = 1;
+}
+
+message KetQua {
+  float gia_tri = 1;
+  string mo_ta  = 2;
+}
+
+message DanhSachSo {
+  repeated int32 danh_sach = 1;
+  string mo_ta             = 2;
+}
+
+// ================================================================
+// SERVICE 2: SINH VIÊN — port 50052
+// ================================================================
+service StudentService {
+  rpc ThemSinhVien  (SinhVien)  returns (PhanHoi);
+  rpc LayDanhSach   (ThamSo)    returns (DanhSachSV);
+}
+
+message SinhVien {
+  string ma_sv  = 1;
+  string ho_ten = 2;
+  float  diem   = 3;
+}
+
+message PhanHoi {
+  bool   thanh_cong = 1;
+  string thong_bao  = 2;
+}
+
+message ThamSo {
+  string loc = 1;  // "all" | "pass" | "fail"
+}
+
+message DanhSachSV {
+  repeated SinhVien sinh_viens = 1;
+  int32 tong_so                = 2;
+}
+
+// ================================================================
+// SERVICE 3: HỆ THỐNG — port 50053
+// ================================================================
+service SystemService {
+  rpc KiemTraTrangThai (YeuCau) returns (TrangThai);
+}
+
+message YeuCau {
+  string ten_service = 1;
+}
+
+message TrangThai {
+  string ten_service = 1;
+  bool   hoat_dong   = 2;
+  string thoi_gian   = 3;
+  int32  so_yeu_cau  = 4;
+}
